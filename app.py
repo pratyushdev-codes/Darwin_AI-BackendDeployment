@@ -1,4 +1,3 @@
-
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -48,12 +47,20 @@ class CodeAnalysisResponse(BaseModel):
 @app.on_event("startup")
 async def startup_event():
     """Initialize the code reviewer on startup"""
+    # Try to get from environment variable first, then fallback to hardcoded (for development only)
     API_KEY = os.getenv("GEMINI_API_KEY")
+    
     if not API_KEY:
-        raise RuntimeError("GEMINI_API_KEY environment variable not set")
+        # DEVELOPMENT ONLY - Remove this in production
+        API_KEY = "AIzaSyBKW201HMOHWMseEzCgBGLlbNm16ZUGYPE"
+        print("WARNING: Using hardcoded API key. Set GEMINI_API_KEY environment variable for production.")
+    
+    if not API_KEY:
+        raise RuntimeError("GEMINI_API_KEY not found in environment or hardcoded fallback")
     
     # Initialize the reviewer and store it in app state
     app.state.reviewer = EmpathethicCodeReviewer(API_KEY)
+    print("Empathetic Code Reviewer initialized successfully")
 
 @app.post("/review", response_model=CodeReviewResponse)
 async def generate_empathetic_review(request: CodeReviewRequest):
@@ -128,6 +135,11 @@ async def analyze_code(request: CodeAnalysisRequest):
 async def health_check():
     """Health check endpoint"""
     return {"status": "healthy", "version": "1.0.0"}
+
+@app.get("/")
+async def root():
+    """Root endpoint"""
+    return {"message": "Empathetic Code Reviewer API", "docs": "/docs"}
 
 if __name__ == "__main__":
     import uvicorn
